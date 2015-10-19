@@ -1,0 +1,138 @@
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE RankNTypes #-}
+module Minesweeper ( Field
+                   , FieldStatus(Virgin, Checked, Marked, Exploded)
+                   , Board
+                   , BoardStatus
+                   , Game
+                   , boardStatus
+                   , mark
+                   , check
+                   , generateBoard
+                   , generateBeginner
+                   , generateIntermediate
+                   , generateExpert
+                   , printArray
+                   ) where
+
+import Control.Monad
+import Control.Lens
+import Control.Monad.Trans.State.Lazy
+import Data.Array.IArray
+import Data.List
+import System.Random
+
+data Field = Field { _isMine :: Bool
+                   , _status :: FieldStatus
+                   }
+
+data FieldStatus = Virgin | Checked Int | Marked | Exploded
+
+makeLenses ''Field
+
+type Board = Array (Int, Int) Field
+
+type BoardStatus = Array (Int, Int) FieldStatus
+
+type Game m = StateT Board m
+
+boardStatus :: Monad m => Game m BoardStatus
+boardStatus = gets (fmap _status)
+
+mark :: Monad m => (Int, Int) -> Game m ()
+mark i = do
+  board <- get
+  case board^?!(field i) of
+    Virgin    -> (field i) .= Marked
+    Marked    -> (field i) .= Virgin
+    otherwise -> return ()
+
+check :: Monad m => (Int, Int) -> Game m Bool
+check i = do
+  board <- get
+  case board^?!(field i) of
+    Checked _ -> return False
+    Exploded  -> return True
+    otherwise -> do
+      if board^?!(isFieldMine i) then do
+        mines .= Exploded
+        return True
+      else do
+        m <- countMines i
+        (field i) .= Checked m
+        when (m == 0) $ do
+          neighbours <- neighbourhood i
+          mapM_ check neighbours
+        return False
+
+field :: (Int, Int) -> Traversal' Board FieldStatus
+field i = (ix i).status
+
+isFieldMine :: (Int, Int) -> Traversal' Board Bool
+isFieldMine i = (ix i).isMine
+
+countMines :: Monad m => (Int, Int) -> Game m Int
+countMines i = do
+  board <- get
+  neighbours <- neighbourhood i
+  return $ length $ filter (\n -> board^?!(isFieldMine n)) neighbours
+
+mines :: Traversal' Board FieldStatus
+mines = traverse.(filtered _isMine).status
+
+neighbourhood :: Monad m => (Int, Int) -> Game m [(Int, Int)]
+neighbourhood (x, y) = do
+  ((minx, miny), (maxx, maxy)) <- gets bounds
+  return [(xp, yp) | xp <- [x - 1, x, x + 1]
+                   , yp <- [y - 1, y, y + 1]
+                   , xp >= minx, xp <= maxx
+                   , yp >= miny, yp <= maxy
+                   , xp /= x || yp /= y]
+
+instance (Random x, Random y) => Random (x, y) where
+  randomR ((x1, y1), (x2, y2)) gen1 =
+    let (x, gen2) = randomR (x1, x2) gen1
+        (y, gen3) = randomR (y1, y2) gen2
+    in ((x, y), gen3)
+  random gen1 =
+    let (x, gen2) = random gen1
+        (y, gen3) = random gen2
+    in ((x, y), gen3)
+
+generateBoard :: RandomGen g => Int -> Int -> Int -> g -> Board
+generateBoard x y numOfMines g =
+  let mines = take numOfMines $ nub $ randomRs ((0,0), (x-1,y-1)) g
+      genField = \i ->
+        if i `elem` mines then Field True Virgin else Field False Virgin
+  in array ((0,0), (x-1,y-1)) [((i,j), genField (i,j)) | i <- [0..x-1], j <- [0..y-1]]
+
+generateBeginner :: RandomGen g => g -> Board
+generateBeginner = generateBoard 9 9 10
+
+generateIntermediate :: RandomGen g => g -> Board
+generateIntermediate = generateBoard 16 16 40
+
+generateExpert :: RandomGen g => g -> Board
+generateExpert = generateBoard 30 16 99
+
+testMine :: (Int, Int) -> Field
+testMine i = if i `elem` [(2,0), (3,1), (3,2), (3,3), (2,4), (1,4)]
+  then (Field True Virgin)
+  else (Field False Virgin)
+
+testBoard :: Board
+testBoard = array ((0,0), (4,4)) [((i,j), testMine (i,j)) | i <- [0..4], j <- [0..4]]
+
+instance Show FieldStatus where
+  show Virgin = "v"
+  show (Checked i) = show i
+  show Marked = "m"
+  show Exploded = "e"
+
+instance Show Field where
+  show (Field m s) = if m then show s ++ "." else show s ++ " "
+
+printArray :: Show a => Array (Int, Int) a -> String
+printArray arr =
+  unlines [unwords [show (arr ! (x, y)) | x <- [minx..maxx]] | y <- [miny..maxy]]
+  where ((minx, miny), (maxx, maxy)) = bounds arr
