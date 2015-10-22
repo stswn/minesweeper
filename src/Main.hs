@@ -8,6 +8,7 @@ import Minesweeper
 import Control.Lens
 import Control.Monad
 import Data.Array.IArray
+import Data.List
 import System.Random
 
 import qualified Graphics.Vty as V
@@ -36,22 +37,26 @@ drawUi :: St -> [Widget]
 drawUi st = [ui]
     where ui = C.center $
                vBox [B.border $ boardVp
-                    , str $ "- Arrow keys navigate the board\n" ++
-                            "- Space key checks current field\n" ++
-                            "- m key marks current field\n" ++
-                            "- Esc exits the game"
+                    , str $ intercalate "\n" instructions
                     ]
-          boardVp = viewport vpTitle Both $
-                    vBox $ do
-                        j <- [st^.board.minY .. st^.board.maxY]
+          boardVp = hLimit (st^.board.maxX - st^.board.minX + 1) $
+                    vLimit (st^.board.maxY - st^.board.minY + 1) $
+                    viewport vpTitle Both $
+                    hBox $ do
+                        i <- [st^.board.minX .. st^.board.maxX]
                         let row = do
-                              i <- [st^.board.minX .. st^.board.maxX]
+                              j <- [st^.board.minY .. st^.board.maxY]
                               let mkItem = if (i,j) == st^.position
                                            then withAttr selectedAttr . visible
                                            else id
-                              return $ mkItem $ str $ show $
+                              return $ mkItem $ str $ printStatus $
                                   st^?!board.(to boardStatus).(ix (i,j))
-                        return $ hBox row
+                        return $ vBox row
+          instructions = [ "- Arrow keys navigate the board"
+                         , "- Space key checks current field"
+                         , "- m key marks current field"
+                         , "- Esc exits the game"
+                         ]
 
 appEvent :: St -> V.Event -> T.EventM (T.Next St)
 appEvent st (V.EvKey V.KDown [])         = M.continue $ st & position._2 %~ min (st^.board.maxY) . (+ 1)

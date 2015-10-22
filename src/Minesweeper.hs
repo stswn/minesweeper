@@ -1,18 +1,19 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RankNTypes #-}
 module Minesweeper ( Field
-                   , FieldStatus(Virgin, Checked, Marked, Exploded)
+                   , FieldStatus(..)
+                   , GameState(..)
                    , Board
                    , BoardStatus
                    , Game
                    , boardStatus
                    , mark
                    , check
+                   , printStatus
                    , generateBoard
                    , generateBeginner
                    , generateIntermediate
                    , generateExpert
-                   , printArray
                    , runState
                    ) where
 
@@ -29,13 +30,15 @@ data Field = Field { _isMine :: Bool
 
 data FieldStatus = Virgin | Checked Int | Marked | Exploded
 
-makeLenses ''Field
+data GameState = Active | Won | Lost
 
 type Board = Array (Int, Int) Field
 
 type BoardStatus = Array (Int, Int) FieldStatus
 
 type Game m = StateT Board m
+
+makeLenses ''Field
 
 boardStatus :: Board -> BoardStatus
 boardStatus = fmap _status
@@ -48,23 +51,26 @@ mark i = do
         Marked    -> (field i) .= Virgin
         otherwise -> return ()
 
-check :: Monad m => (Int, Int) -> Game m Bool
+check :: Monad m => (Int, Int) -> Game m GameState
 check i = do
     board <- get
     case board^?!(field i) of
-        Checked _ -> return False
-        Exploded  -> return True
+        Checked _ -> return Active
+        Exploded  -> return Lost
         otherwise -> do
             if board^?!(isFieldMine i) then do
                 mines .= Exploded
-                return True
+                return Lost
             else do
                 m <- countMines i
                 (field i) .= Checked m
                 when (m == 0) $ do
                     neighbours <- neighbourhood i
                     mapM_ check neighbours
-                return False
+                if all (\f -> case f^.status of (Checked _) -> True
+                                                otherwise   -> f^.isMine
+                       ) board then do return Won
+                else do return Active
 
 field :: (Int, Int) -> Traversal' Board FieldStatus
 field i = (ix i).status
@@ -117,25 +123,9 @@ generateIntermediate = generateBoard 16 16 40
 generateExpert :: RandomGen g => g -> Board
 generateExpert = generateBoard 30 16 99
 
-testMine :: (Int, Int) -> Field
-testMine i = if i `elem` [(2,0), (3,1), (3,2), (3,3), (2,4), (1,4)]
-    then (Field True Virgin)
-    else (Field False Virgin)
-
-testBoard :: Board
-testBoard = array ((0,0), (4,4)) [((i,j), testMine (i,j)) | i <- [0..4], j <- [0..4]]
-
-instance Show FieldStatus where
-    show Virgin = "░"
-    show (Checked 0) = " "
-    show (Checked i) = show i
-    show Marked = "⚑"
-    show Exploded = "⚙"
-
-instance Show Field where
-    show (Field m s) = if m then show s ++ "." else show s ++ " "
-
-printArray :: Show a => Array (Int, Int) a -> String
-printArray arr =
-    unlines [unwords [show (arr ! (x, y)) | x <- [minx..maxx]] | y <- [miny..maxy]]
-    where ((minx, miny), (maxx, maxy)) = bounds arr
+printStatus :: FieldStatus -> String
+printStatus Virgin = "░"
+printStatus (Checked 0) = " "
+printStatus (Checked i) = show i
+printStatus Marked = "⚑"
+printStatus Exploded = "⚙"
