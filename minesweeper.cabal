@@ -1,14 +1,14 @@
 name:                minesweeper
 version:             0.1.0.0
-synopsis:            Simple project template from stack
+synopsis:            Simple minesweeper game with textual UI
 description:         Please see README.md
 homepage:            http://github.com/githubuser/minesweeper#readme
 license:             BSD3
 license-file:        LICENSE
-author:              Author name here
-maintainer:          example@example.com
-copyright:           2010 Author Here
-category:            Web
+author:              Stanisław Swianiewicz
+maintainer:          swian@post.pl
+copyright:           2015 Stanisław Swianiewicz
+category:            Games
 build-type:          Simple
 cabal-version:       >=1.10
 
