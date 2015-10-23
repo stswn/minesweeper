@@ -23,6 +23,7 @@ executable minesweeper
                      , transformers
                      , array
                      , lens
+                     , data-default
                      , random
                      , vty
                      , brick

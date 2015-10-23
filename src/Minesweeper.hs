@@ -30,7 +30,7 @@ data Field = Field { _isMine :: Bool
 
 data FieldStatus = Virgin | Checked Int | Marked | Exploded
 
-data GameState = Active | Won | Lost
+data GameState = Active | Won | Lost deriving Eq
 
 type Board = Array (Int, Int) Field
 
@@ -67,10 +67,8 @@ check i = do
                 when (m == 0) $ do
                     neighbours <- neighbourhood i
                     mapM_ check neighbours
-                if all (\f -> case f^.status of (Checked _) -> True
-                                                otherwise   -> f^.isMine
-                       ) board then do return Won
-                else do return Active
+                end <- boardFinished
+                if end then return Won else return Active 
 
 field :: (Int, Int) -> Traversal' Board FieldStatus
 field i = (ix i).status
@@ -86,6 +84,12 @@ countMines i = do
 
 mines :: Traversal' Board FieldStatus
 mines = traverse.(filtered _isMine).status
+
+boardFinished :: Monad m => Game m Bool
+boardFinished = do
+    board <- get
+    return $ all (\f -> case f^.status of (Checked _) -> True
+                                          otherwise   -> f^.isMine) board
 
 neighbourhood :: Monad m => (Int, Int) -> Game m [(Int, Int)]
 neighbourhood (x, y) = do
