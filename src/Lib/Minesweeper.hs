@@ -1,28 +1,28 @@
+{-# LANGUAGE RankNTypes      #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE RankNTypes #-}
-module Minesweeper ( Field
-                   , FieldStatus(..)
-                   , GameState(..)
-                   , Board
-                   , BoardStatus
-                   , Game
-                   , boardStatus
-                   , mark
-                   , check
-                   , printStatus
-                   , generateBoard
-                   , generateBeginner
-                   , generateIntermediate
-                   , generateExpert
-                   , runState
-                   ) where
+module Lib.Minesweeper ( Field
+                       , FieldStatus(..)
+                       , GameState(..)
+                       , Board
+                       , BoardStatus
+                       , Game
+                       , boardStatus
+                       , mark
+                       , check
+                       , printStatus
+                       , generateBoard
+                       , generateBeginner
+                       , generateIntermediate
+                       , generateExpert
+                       , runState
+                       ) where
 
-import Control.Monad
-import Control.Lens
-import Control.Monad.Trans.State.Lazy
-import Data.Array.IArray
-import Data.List
-import System.Random
+import           Control.Lens
+import           Control.Monad
+import           Control.Monad.Trans.State.Lazy
+import           Data.Array.IArray
+import           Data.List
+import           System.Random
 
 data Field = Field { _isMine :: Bool
                    , _status :: FieldStatus
@@ -68,7 +68,7 @@ check i = do
                     neighbours <- neighbourhood i
                     mapM_ check neighbours
                 end <- boardFinished
-                if end then return Won else return Active 
+                if end then return Won else return Active
 
 field :: (Int, Int) -> Traversal' Board FieldStatus
 field i = (ix i).status
