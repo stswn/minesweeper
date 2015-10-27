@@ -10,6 +10,7 @@ module Lib.Minesweeper ( Field
                        , mark
                        , check
                        , printStatus
+                       , printStatusA
                        , generateBoard
                        , generateBeginner
                        , generateIntermediate
@@ -133,3 +134,10 @@ printStatus (Checked 0) = " "
 printStatus (Checked i) = show i
 printStatus Marked = "⚑"
 printStatus Exploded = "⚙"
+
+printStatusA :: FieldStatus -> String
+printStatusA Virgin = "░"
+printStatusA (Checked 0) = " "
+printStatusA (Checked i) = show i
+printStatusA Marked = "~"
+printStatusA Exploded = "o"

@@ -4,6 +4,7 @@
 module App.Ui (runUi) where
 
 import           Lib.Minesweeper
+import           App.Params
 
 import           Control.Concurrent
 import           Control.Lens
@@ -25,7 +26,8 @@ import qualified Brick.Widgets.Center   as C
 import           Brick.Widgets.Core
 import qualified Graphics.Vty           as V
 
-data St = St { _board     :: Board
+data St = St { _params    :: Params
+             , _board     :: Board
              , _position  :: (Int, Int)
              , _time      :: Int
              , _gameState :: GameState
@@ -67,9 +69,10 @@ drawUi st = [ui]
                               let mkItem = if (i,j) == st^.position
                                            then withAttr selectedAttr . visible
                                            else id
-                              return $ mkItem $ str $ printStatus $
+                              return $ mkItem $ str $ printField $
                                   st^?!board.(to boardStatus).(ix (i,j))
                         return $ vBox row
+          printField = if st^.params.(to useAscii) then printStatusA else printStatus
           instructions Active = [ "- Arrows navigate the board"
                                 , "- Space checks current field"
                                 , "- 'm' marks current field"
@@ -104,9 +107,10 @@ keyEvent st (V.EvKey V.KEsc [])        = M.halt st
 keyEvent st _                          = M.continue st
 
 endKeyEvent :: St -> V.Event -> T.EventM (T.Next St)
-endKeyEvent st (V.EvKey (V.KChar 'r') []) = do newTimer <- liftIO $ restartTimer (st^.timer)
-                                               newState <- liftIO $ initState newTimer
-                                               M.continue newState
+endKeyEvent st (V.EvKey (V.KChar 'r') []) = do
+    newTimer <- liftIO $ restartTimer (st^.timer)
+    newState <- liftIO $ initState (st^.params) newTimer
+    M.continue newState
 endKeyEvent st (V.EvKey V.KEsc [])        = M.halt st
 endKeyEvent st _                          = M.continue st
 
@@ -136,11 +140,16 @@ app = M.App { M.appDraw = drawUi
             , M.appChooseCursor = M.neverShowCursor
             }
 
-initState :: Timer -> IO St
-initState timer = do
+initState :: Params -> Timer -> IO St
+initState params timer = do
     gen <- newStdGen
-    let initialBoard = generateExpert gen
-    return St { _board = initialBoard
+    let initialBoard = case boardType params of
+                            Beginner       -> generateBeginner gen
+                            Intermediate   -> generateIntermediate gen
+                            Expert         -> generateExpert gen
+                            (Custom w h m) -> generateBoard w h m gen
+    return St { _params = params
+              , _board = initialBoard
               , _position = (initialBoard^.minX, initialBoard^.minY)
               , _time = 0
               , _gameState = Active
@@ -157,9 +166,9 @@ initTimer chan = do
 restartTimer :: Timer -> IO Timer
 restartTimer (chan, threadId) = killThread threadId >> initTimer chan
 
-runUi :: IO ()
-runUi = do
+runUi :: Params -> IO ()
+runUi params = do
   chan <- newChan
   newTimer <- initTimer chan
-  initialState <- initState newTimer
+  initialState <- initState params newTimer
   void $ M.customMain (V.mkVty def) chan app initialState

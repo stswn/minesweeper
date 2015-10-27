@@ -1,7 +1,7 @@
 module Main where
 
-import           App.Ui
+import App.Params
+import App.Ui
 
 main :: IO ()
-main = do
-  runUi
+main = getParams >>= runUi

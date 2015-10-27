@@ -28,3 +28,4 @@ executable minesweeper
                      , random
                      , vty
                      , brick
+                     , optparse-applicative
