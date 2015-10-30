@@ -17,14 +17,15 @@ import           System.Random
 import           Text.Printf
 
 import           Brick.AttrMap
-import qualified Brick.Main             as M
+import qualified Brick.Main                 as M
 import           Brick.Types
-import qualified Brick.Types            as T
+import qualified Brick.Types                as T
 import           Brick.Util
-import qualified Brick.Widgets.Border   as B
-import qualified Brick.Widgets.Center   as C
+import qualified Brick.Widgets.Border       as B
+import qualified Brick.Widgets.Border.Style as BS
+import qualified Brick.Widgets.Center       as C
 import           Brick.Widgets.Core
-import qualified Graphics.Vty           as V
+import qualified Graphics.Vty               as V
 
 data St = St { _params    :: Params
              , _board     :: Board
@@ -48,19 +49,21 @@ selectedAttr = "selected"
 
 drawUi :: St -> [Widget]
 drawUi st = [ui]
-    where ui = C.center $
-               vBox [ hLimit (st^.board.maxX - st^.board.minX + 3) $
+    where ui = C.center $ withBorderStyle borderStyle $ B.border $
+               vBox [ hLimit width $
                       hBox [str $ stateStr (st^.gameState)
                            , padLeft Max $ str $ printf "%04d" (st^.time)
                            ]
-                    , B.border boardVp
+                    , padLeftRight (max 0 ((width - boardWidth - 2)) `div` 2) $
+                      B.border boardVp
                     , str $ intercalate "\n" (instructions (st^.gameState))
                     ]
+          stateStr :: GameState -> String
           stateStr Won = "You won!"
           stateStr Lost = "You lost!"
           stateStr Active = ""
-          boardVp = hLimit (st^.board.maxX - st^.board.minX + 1) $
-                    vLimit (st^.board.maxY - st^.board.minY + 1) $
+          boardVp = hLimit boardWidth $
+                    vLimit boardHeight $
                     viewport vpTitle Both $
                     hBox $ do
                         i <- [st^.board.minX .. st^.board.maxX]
@@ -73,6 +76,7 @@ drawUi st = [ui]
                                   st^?!board.(to boardStatus).(ix (i,j))
                         return $ vBox row
           printField = if st^.params.(to useAscii) then printStatusA else printStatus
+          instructions :: GameState -> [String]
           instructions Active = [ "- Arrows navigate the board"
                                 , "- Space checks current field"
                                 , "- 'm' marks current field"
@@ -83,6 +87,15 @@ drawUi st = [ui]
                                 , "- "
                                 , "- Esc exits the game"
                                 ]
+          width = maximum [ (maximum . map length) (instructions Active)
+                          , (maximum . map length) (instructions Won)
+                          , length (stateStr Won) + 5
+                          , length (stateStr Lost) + 5
+                          , boardWidth + 2
+                          ]
+          boardWidth = st^.board.maxX - st^.board.minX + 1
+          boardHeight = st^.board.maxY - st^.board.minY + 1
+          borderStyle = if useAscii (st^.params) then BS.ascii else BS.unicode
 
 appEvent :: St -> MyEvent -> T.EventM (T.Next St)
 appEvent st (VtyEvent ev) = if st^.gameState == Active then

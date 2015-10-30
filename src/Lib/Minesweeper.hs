@@ -69,7 +69,10 @@ check i = do
                     neighbours <- neighbourhood i
                     mapM_ check neighbours
                 end <- boardFinished
-                if end then return Won else return Active
+                if end then do
+                    mines .= Marked
+                    return Won
+                else return Active
 
 field :: (Int, Int) -> Traversal' Board FieldStatus
 field i = (ix i).status
@@ -136,7 +139,7 @@ printStatus Marked = "⚑"
 printStatus Exploded = "⚙"
 
 printStatusA :: FieldStatus -> String
-printStatusA Virgin = "░"
+printStatusA Virgin = "#"
 printStatusA (Checked 0) = " "
 printStatusA (Checked i) = show i
 printStatusA Marked = "~"
