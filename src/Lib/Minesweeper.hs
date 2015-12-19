@@ -1,12 +1,12 @@
 {-# LANGUAGE RankNTypes      #-}
 {-# LANGUAGE TemplateHaskell #-}
-module Lib.Minesweeper ( Field
+module Lib.Minesweeper ( Field(..)
                        , FieldStatus(..)
                        , GameState(..)
                        , Board
                        , BoardStatus
                        , Game
-                       , boardStatus
+                       , status
                        , mark
                        , check
                        , printStatus
@@ -40,9 +40,6 @@ type BoardStatus = Array (Int, Int) FieldStatus
 type Game m = StateT Board m
 
 makeLenses ''Field
-
-boardStatus :: Board -> BoardStatus
-boardStatus = fmap _status
 
 mark :: Monad m => (Int, Int) -> Game m ()
 mark i = do
@@ -144,3 +141,10 @@ printStatusA (Checked 0) = " "
 printStatusA (Checked i) = show i
 printStatusA Marked = "~"
 printStatusA Exploded = "o"
+
+instance Show FieldStatus where
+    show = printStatus
+
+instance Show Field where
+    show (Field True status)  = "{" ++ show status ++ "}"
+    show (Field False status) = " " ++ show status ++ " "

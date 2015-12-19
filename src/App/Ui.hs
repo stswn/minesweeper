@@ -73,7 +73,7 @@ drawUi st = [ui]
                                            then withAttr selectedAttr . visible
                                            else id
                               return $ mkItem $ str $ printField $
-                                  st^?!board.(to boardStatus).(ix (i,j))
+                                  st^?!board.(ix (i,j).status)
                         return $ vBox row
           printField = if st^.params.(to useAscii) then printStatusA else printStatus
           instructions :: GameState -> [String]
