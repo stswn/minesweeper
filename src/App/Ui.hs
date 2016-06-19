@@ -54,7 +54,7 @@ drawUi st = [ui]
                       hBox [str $ stateStr (st^.gameState)
                            , padLeft Max $ str $ printf "%04d" (st^.time)
                            ]
-                    , padLeftRight (max 0 ((width - boardWidth - 2)) `div` 2) $
+                    , padLeftRight (max 0 (width - boardWidth - 2) `div` 2) $
                       B.border boardVp
                     , str $ intercalate "\n" (instructions (st^.gameState))
                     ]
@@ -73,9 +73,9 @@ drawUi st = [ui]
                                            then withAttr selectedAttr . visible
                                            else id
                               return $ mkItem $ str $ printField $
-                                  st^?!board.(ix (i,j).status)
+                                  st^?!board.ix (i,j).status
                         return $ vBox row
-          printField = if st^.params.(to useAscii) then printStatusA else printStatus
+          printField = if st^.params.to useAscii then printStatusA else printStatus
           instructions :: GameState -> [String]
           instructions Active = [ "- Arrows navigate the board"
                                 , "- Space checks current field"
@@ -112,7 +112,7 @@ keyEvent st (V.EvKey V.KDown [])       = M.continue $ st & position._2 %~ min (s
 keyEvent st (V.EvKey V.KUp [])         = M.continue $ st & position._2 %~ max (st^.board.minY) . subtract 1
 keyEvent st (V.EvKey V.KRight [])      = M.continue $ st & position._1 %~ min (st^.board.maxX) . (+ 1)
 keyEvent st (V.EvKey V.KLeft [])       = M.continue $ st & position._1 %~ max (st^.board.minX) . subtract 1
-keyEvent st (V.EvKey (V.KChar 'm') []) = M.continue $ st & board %~ snd.(runState $ mark (st^.position))
+keyEvent st (V.EvKey (V.KChar 'm') []) = M.continue $ st & board %~ snd.runState (mark (st^.position))
 keyEvent st (V.EvKey (V.KChar ' ') []) = M.continue $ st & gameState .~ fst runCheck
                                                          & board     .~ snd runCheck
                                          where runCheck = runState (check (st^.position)) (st^.board)

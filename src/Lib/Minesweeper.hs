@@ -44,24 +44,24 @@ makeLenses ''Field
 mark :: Monad m => (Int, Int) -> Game m ()
 mark i = do
     board <- get
-    case board^?!(field i) of
-        Virgin    -> (field i) .= Marked
-        Marked    -> (field i) .= Virgin
-        otherwise -> return ()
+    case board^?!field i of
+        Virgin    -> field i .= Marked
+        Marked    -> field i .= Virgin
+        _         -> return ()
 
 check :: Monad m => (Int, Int) -> Game m GameState
 check i = do
     board <- get
-    case board^?!(field i) of
+    case board^?!field i of
         Checked _ -> return Active
         Exploded  -> return Lost
-        otherwise -> do
-            if board^?!(isFieldMine i) then do
+        _         -> 
+            if board^?!isFieldMine i then do
                 mines .= Exploded
                 return Lost
             else do
                 m <- countMines i
-                (field i) .= Checked m
+                field i .= Checked m
                 when (m == 0) $ do
                     neighbours <- neighbourhood i
                     mapM_ check neighbours
@@ -72,16 +72,16 @@ check i = do
                 else return Active
 
 field :: (Int, Int) -> Traversal' Board FieldStatus
-field i = (ix i).status
+field i = ix i.status
 
 isFieldMine :: (Int, Int) -> Traversal' Board Bool
-isFieldMine i = (ix i).isMine
+isFieldMine i = ix i.isMine
 
 countMines :: Monad m => (Int, Int) -> Game m Int
 countMines i = do
     board <- get
     neighbours <- neighbourhood i
-    return $ length $ filter (\n -> board^?!(isFieldMine n)) neighbours
+    return $ length $ filter (\n -> board^?!isFieldMine n) neighbours
 
 mines :: Traversal' Board FieldStatus
 mines = traverse.(filtered _isMine).status
@@ -90,7 +90,7 @@ boardFinished :: Monad m => Game m Bool
 boardFinished = do
     board <- get
     return $ all (\f -> case f^.status of (Checked _) -> True
-                                          otherwise   -> f^.isMine) board
+                                          _           -> f^.isMine) board
 
 neighbourhood :: Monad m => (Int, Int) -> Game m [(Int, Int)]
 neighbourhood (x, y) = do
@@ -114,10 +114,9 @@ instance (Random x, Random y) => Random (x, y) where
 
 generateBoard :: RandomGen g => Int -> Int -> Int -> g -> Board
 generateBoard x y numOfMines g =
-    let mines = take numOfMines $ nub $ randomRs ((0,0), (x-1,y-1)) g
-        genField = \i ->
-            if i `elem` mines then Field True Virgin else Field False Virgin
-    in array ((0,0), (x-1,y-1)) [((i,j), genField (i,j)) | i <- [0..x-1], j <- [0..y-1]]
+    let mines      = take numOfMines $ nub $ randomRs ((0,0), (x-1,y-1)) g
+        genField i = if i `elem` mines then Field True Virgin else Field False Virgin
+    in  array ((0,0), (x-1,y-1)) [((i,j), genField (i,j)) | i <- [0..x-1], j <- [0..y-1]]
 
 generateBeginner :: RandomGen g => g -> Board
 generateBeginner = generateBoard 9 9 10
